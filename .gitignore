@@ -30,7 +30,8 @@ yarn-error.*
 .DS_Store
 *.pem
 
-# local env files
+# local env files (keep .env out of repo — contains EXPO_PUBLIC_ADMIN_SESSION_SECRET)
+.env
 .env*.local
 
 # typescript
