@@ -9,77 +9,47 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  ActivityIndicator,
 } from 'react-native';
 import { useAuth } from '../context/AuthContext';
 
 export default function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [name, setName] = useState('');
-  const [isRegistering, setIsRegistering] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const { login, register } = useAuth();
+  const { login } = useAuth();
 
   const handleLogin = async () => {
     if (!email || !password) {
-      Alert.alert('Error', 'Please fill in all fields');
+      Alert.alert('Required', 'Please enter your email and password.');
       return;
     }
 
     setIsLoading(true);
     try {
-      const success = await login(email, password);
-      if (!success) {
-        Alert.alert('Error', 'Login failed. Please try again.');
+      const result = await login(email.trim().toLowerCase(), password);
+      if (!result.success) {
+        Alert.alert('Login Failed', result.error || 'Invalid credentials. Please try again.');
       }
     } catch (error) {
-      Alert.alert('Error', 'An unexpected error occurred');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleRegister = async () => {
-    if (!name || !email || !password) {
-      Alert.alert('Error', 'Please fill in all fields');
-      return;
-    }
-
-    setIsLoading(true);
-    try {
-      const success = await register(name, email, password, 'caregiver');
-      if (!success) {
-        Alert.alert('Error', 'Registration failed. Please try again.');
-      }
-    } catch (error) {
-      Alert.alert('Error', 'An unexpected error occurred');
+      Alert.alert('Error', 'An unexpected error occurred. Please try again.');
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <KeyboardAvoidingView 
-      style={styles.container} 
+    <KeyboardAvoidingView
+      style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       <ScrollView contentContainerStyle={styles.scrollContainer}>
         <View style={styles.header}>
           <Text style={styles.title}>Caregiver Clock</Text>
-          <Text style={styles.subtitle}>Clock in/out and manage your shifts</Text>
+          <Text style={styles.subtitle}>Sign in to access your shifts</Text>
         </View>
 
         <View style={styles.form}>
-          {isRegistering && (
-            <TextInput
-              style={styles.input}
-              placeholder="Full Name"
-              value={name}
-              onChangeText={setName}
-              autoCapitalize="words"
-            />
-          )}
-
           <TextInput
             style={styles.input}
             placeholder="Email"
@@ -87,6 +57,8 @@ export default function LoginScreen() {
             onChangeText={setEmail}
             keyboardType="email-address"
             autoCapitalize="none"
+            autoCorrect={false}
+            editable={!isLoading}
           />
 
           <TextInput
@@ -95,33 +67,26 @@ export default function LoginScreen() {
             value={password}
             onChangeText={setPassword}
             secureTextEntry
+            editable={!isLoading}
           />
 
           <TouchableOpacity
             style={[styles.button, isLoading && styles.buttonDisabled]}
-            onPress={isRegistering ? handleRegister : handleLogin}
+            onPress={handleLogin}
             disabled={isLoading}
           >
-            <Text style={styles.buttonText}>
-              {isLoading ? 'Loading...' : (isRegistering ? 'Register' : 'Login')}
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.switchButton}
-            onPress={() => setIsRegistering(!isRegistering)}
-          >
-            <Text style={styles.switchButtonText}>
-              {isRegistering 
-                ? 'Already have an account? Login' 
-                : "Don't have an account? Register"
-              }
-            </Text>
+            {isLoading ? (
+              <ActivityIndicator color="#FFFFFF" />
+            ) : (
+              <Text style={styles.buttonText}>Sign In</Text>
+            )}
           </TouchableOpacity>
         </View>
 
         <View style={styles.footer}>
-          <Text style={styles.footerText}>Demo: Use any email/password to login</Text>
+          <Text style={styles.footerText}>
+            Contact your administrator if you need access.
+          </Text>
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -177,7 +142,6 @@ const styles = StyleSheet.create({
     padding: 16,
     borderRadius: 8,
     alignItems: 'center',
-    marginBottom: 16,
   },
   buttonDisabled: {
     backgroundColor: '#94a3b8',
@@ -187,15 +151,8 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
-  switchButton: {
-    alignItems: 'center',
-  },
-  switchButtonText: {
-    color: '#2563EB',
-    fontSize: 14,
-  },
   footer: {
-    marginTop: 40,
+    marginTop: 32,
     alignItems: 'center',
   },
   footerText: {

@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import * as SecureStore from 'expo-secure-store';
+import { CONFIG } from '../constants/Config';
 
 interface User {
   id: string;
@@ -11,9 +12,8 @@ interface User {
 interface AuthContextType {
   user: User | null;
   isLoading: boolean;
-  login: (email: string, password: string) => Promise<boolean>;
+  login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
   logout: () => Promise<void>;
-  register: (name: string, email: string, password: string, role: 'caregiver' | 'client') => Promise<boolean>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -35,7 +35,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Check for stored user session on app start
     loadStoredUser();
   }, []);
 
@@ -52,54 +51,35 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
-  const login = async (email: string, password: string): Promise<boolean> => {
+  const login = async (email: string, password: string): Promise<{ success: boolean; error?: string }> => {
     try {
       setIsLoading(true);
-      
-      // Mock authentication - in production, this would call your API
-      // For demo purposes, accept any email/password
-      if (email && password) {
-        const mockUser: User = {
-          id: '1',
-          name: email.split('@')[0], // Use part of email as name
-          email: email,
-          role: 'caregiver', // Default to caregiver for this app
-        };
-        
-        setUser(mockUser);
-        await SecureStore.setItemAsync('user', JSON.stringify(mockUser));
-        return true;
+
+      const res = await fetch(`${CONFIG.API_BASE_URL}/api/caregivers/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        return { success: false, error: data.error || 'Login failed' };
       }
-      return false;
+
+      const loggedInUser: User = {
+        id: data.user.id,
+        name: data.user.name,
+        email: data.user.email,
+        role: 'caregiver',
+      };
+
+      setUser(loggedInUser);
+      await SecureStore.setItemAsync('user', JSON.stringify(loggedInUser));
+      return { success: true };
     } catch (error) {
       console.error('Login error:', error);
-      return false;
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const register = async (name: string, email: string, password: string, role: 'caregiver' | 'client'): Promise<boolean> => {
-    try {
-      setIsLoading(true);
-      
-      // Mock registration - in production, this would call your API
-      if (name && email && password) {
-        const mockUser: User = {
-          id: Date.now().toString(),
-          name: name,
-          email: email,
-          role: role,
-        };
-        
-        setUser(mockUser);
-        await SecureStore.setItemAsync('user', JSON.stringify(mockUser));
-        return true;
-      }
-      return false;
-    } catch (error) {
-      console.error('Registration error:', error);
-      return false;
+      return { success: false, error: 'Network error. Please check your connection.' };
     } finally {
       setIsLoading(false);
     }
@@ -119,8 +99,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     isLoading,
     login,
     logout,
-    register,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
+
+
