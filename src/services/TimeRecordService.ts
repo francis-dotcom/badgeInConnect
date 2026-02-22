@@ -171,6 +171,31 @@ export class TimeRecordService {
     }
   }
 
+  async acknowledgeShift(clientId: string, userEmail: string, shiftId?: string): Promise<{ success: boolean; error?: string }> {
+    try {
+      const res = await fetch(`${CONFIG.API_BASE_URL}/api/caregivers/clock`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'acknowledge',
+          email: userEmail,
+          client_id: clientId,
+          shift_id: shiftId
+        })
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        return { success: false, error: data.error || 'Failed to acknowledge care plan' };
+      }
+
+      return { success: true };
+    } catch (error) {
+      console.error('Acknowledgment error:', error);
+      return { success: false, error: 'Network request failed' };
+    }
+  }
+
   async clockOut(request: ClockOutRequest, userEmail: string): Promise<{ success: boolean; error?: string }> {
     try {
       const res = await fetch(`${CONFIG.API_BASE_URL}/api/caregivers/clock`, {

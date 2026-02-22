@@ -3,8 +3,10 @@ import { View, Text, StyleSheet, ScrollView, Platform, TouchableOpacity } from "
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Feather, MaterialIcons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
+import { Alert, ActivityIndicator } from "react-native";
 
 import { TimeRecordService } from "../services/TimeRecordService";
+import { useAuth } from "../context/AuthContext";
 
 type RowItem = {
   label: string;
@@ -25,6 +27,9 @@ export default function ClientDetailsScreen() {
   const [adlNotes, setAdlNotes] = React.useState<string | null>(null);
   const [emergencyRows, setEmergencyRows] = React.useState<RowItem[]>([]);
   const [physicianRows, setPhysicianRows] = React.useState<RowItem[]>([]);
+  const [isAcknowledging, setIsAcknowledging] = React.useState(false);
+  const [isAcknowledged, setIsAcknowledged] = React.useState(false);
+  const { user } = useAuth();
 
   React.useEffect(() => {
     async function loadData() {
@@ -112,6 +117,28 @@ export default function ClientDetailsScreen() {
     .join("")
     .slice(0, 2)
     .toUpperCase();
+
+  const handleAcknowledge = async () => {
+    if (!params.clientId || !user?.email) return;
+    
+    setIsAcknowledging(true);
+    try {
+      const service = new TimeRecordService();
+      const res = await service.acknowledgeShift(params.clientId, user.email);
+      
+      if (res.success) {
+        setIsAcknowledged(true);
+        // Navigate directly to Active Shift screen so they can clock in immediately
+        router.push("/(tabs)/active-shift");
+      } else {
+        Alert.alert("Error", res.error || "Failed to acknowledge care plan");
+      }
+    } catch (error) {
+      Alert.alert("Error", "A network error occurred.");
+    } finally {
+      setIsAcknowledging(false);
+    }
+  };
 
   return (
     <SafeAreaView style={styles.safe} edges={["top", "bottom"]}>
@@ -226,9 +253,21 @@ export default function ClientDetailsScreen() {
             </View>
           </View>
 
-          <TouchableOpacity style={styles.ackButton}>
-            <Feather name="check-circle" size={18} color="#FFFFFF" />
-            <Text style={styles.ackButtonText}>I Have Read & Acknowledged</Text>
+          <TouchableOpacity 
+            style={[styles.ackButton, (isAcknowledged || isAcknowledging) && styles.ackButtonDisabled]}
+            onPress={handleAcknowledge}
+            disabled={isAcknowledging || isAcknowledged}
+          >
+            {isAcknowledging ? (
+              <ActivityIndicator color="#FFFFFF" />
+            ) : (
+              <>
+                <Feather name={isAcknowledged ? "check" : "check-circle"} size={18} color="#FFFFFF" />
+                <Text style={styles.ackButtonText}>
+                  {isAcknowledged ? "Acknowledged" : "I Have Read & Acknowledged"}
+                </Text>
+              </>
+            )}
           </TouchableOpacity>
         </ScrollView>
       </View>
@@ -385,6 +424,7 @@ const styles = StyleSheet.create({
     ...(shadow || {}),
   },
   ackButtonText: { color: "#FFFFFF", fontSize: 15, fontFamily: "Outfit_600SemiBold" },
+  ackButtonDisabled: { backgroundColor: "#A0A0A0", opacity: 0.8 },
   footerWrap: { padding: 16, borderTopWidth: 1, borderTopColor: "#F0EFEC", backgroundColor: "#F9F8F6" },
   footerTitle: { fontSize: 10, fontFamily: "Outfit_700Bold", color: "#9A9996", marginBottom: 4 },
   footerText: { fontSize: 13, color: "#1A1918", fontFamily: "Outfit_400Regular", lineHeight: 18 },
